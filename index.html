@@ -305,6 +305,31 @@ footer{
 }
 .nav-logo{flex-shrink:0;display:flex;align-items:center;text-decoration:none}
 .nav-logo img{height:38px;width:auto;display:block}
+.shop-status{
+  display:inline-flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;
+  padding:5px 12px;border-radius:100px;
+  font-size:11px;font-weight:700;letter-spacing:.01em;
+  background:#eef9f1;color:#1a7d3e;
+}
+.shop-status-dot{width:7px;height:7px;border-radius:50%;background:#1fae57;flex-shrink:0;position:relative}
+.shop-status.is-open .shop-status-dot::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;
+  background:#1fae57;opacity:.35;animation:shopPulse 1.8s ease-out infinite;
+}
+@keyframes shopPulse{0%{transform:scale(.6);opacity:.5}100%{transform:scale(2.2);opacity:0}}
+.shop-status.is-closed{background:#fdf1f1;color:var(--red-dk)}
+.shop-status.is-closed .shop-status-dot{background:var(--red)}
+.mob-status{
+  display:flex;align-items:center;gap:8px;
+  margin:18px 24px 4px;padding:8px 14px;border-radius:100px;
+  font-size:12px;font-weight:700;background:#eef9f1;color:#1a7d3e;width:fit-content;
+}
+.mob-status .shop-status-dot{width:8px;height:8px}
+.mob-status.is-closed{background:#fdf1f1;color:var(--red-dk)}
+.mob-status.is-closed .shop-status-dot{background:var(--red)}
+@media(max-width:420px){
+  .shop-status .shop-status-txt-full{display:none}
+}
 .nav-links{
   flex:1;
   display:flex;align-items:center;justify-content:center;
@@ -376,6 +401,12 @@ footer{
   cursor:pointer;transition:background .15s,color .15s;
 }
 .btn-add:hover{background:var(--red);color:#fff}
+.btn-add.is-locked{
+  border-color:#c7c2ba;color:#8a8377;background:#f4f2ee;
+  cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.btn-add.is-locked:hover{background:#f4f2ee;color:#8a8377}
+.btn-add.is-locked svg{flex:0 0 auto}
 .qty-stepper{
   display:flex;align-items:stretch;justify-content:space-between;
   border:1.5px solid var(--red);border-radius:8px;overflow:hidden;height:34px;
@@ -387,6 +418,10 @@ footer{
   transition:background .15s;
 }
 .qty-stepper button:hover{background:var(--red-dk)}
+.qty-stepper button[disabled]{
+  background:#e4e0d8;color:#a39c8e;cursor:not-allowed;
+}
+.qty-stepper button[disabled]:hover{background:#e4e0d8}
 .qty-stepper .qty-val{
   flex:1;display:flex;align-items:center;justify-content:center;
   font-size:13px;font-weight:800;color:var(--text);
@@ -537,6 +572,10 @@ footer{
     <a class="nav-logo" href="#">
       <img src="mq75cp6e-logo.svg" alt="Fábrica Santtini">
     </a>
+    <span class="shop-status" id="shopStatus" aria-live="polite">
+      <span class="shop-status-dot"></span>
+      <span class="shop-status-txt">—</span><span class="shop-status-txt-full"></span>
+    </span>
     <ul class="nav-links">
       <li><a href="#linha-mercado">Mini Fritos 300g</a></li>
       <li><a href="#linha-conveniencia">Mini Assados 400g</a></li>
@@ -557,6 +596,10 @@ footer{
 </header>
 
 <nav class="mob-menu" id="mob-menu" aria-hidden="true">
+  <span class="mob-status" id="shopStatusMob" aria-live="polite">
+    <span class="shop-status-dot"></span>
+    <span class="shop-status-txt">—</span>
+  </span>
   <a href="#linha-mercado">Mini Salgados Fritos 300g</a>
   <a href="#linha-conveniencia">Mini Salgados Assados 400g</a>
   <a href="#linha-assados">Salgados Assados Grandes</a>
@@ -939,19 +982,28 @@ footer{
     });
   }
 
+  var LOCK_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>';
+
+  function shopIsOpen(){
+    return window.SHOP_OPEN!==false;
+  }
+
   function renderCardActions(id){
     var card=document.querySelector('.card[data-cart-id="'+id+'"]');
     if(!card)return;
     var actions=card.querySelector('.card-actions');
     var qty=cart[id]||0;
+    var open=shopIsOpen();
     if(qty<=0){
-      actions.innerHTML='<button type="button" class="btn-add" data-add="'+id+'">Adicionar</button>';
+      actions.innerHTML=open
+        ? '<button type="button" class="btn-add" data-add="'+id+'">Adicionar</button>'
+        : '<button type="button" class="btn-add is-locked" disabled aria-label="Loja fechada">'+LOCK_SVG+' Loja fechada</button>';
     }else{
       actions.innerHTML=
         '<div class="qty-stepper">'+
           '<button type="button" data-dec="'+id+'" aria-label="Diminuir">−</button>'+
           '<span class="qty-val">'+qty+'</span>'+
-          '<button type="button" data-inc="'+id+'" aria-label="Aumentar">+</button>'+
+          '<button type="button" data-inc="'+id+'" aria-label="Aumentar"'+(open?'':' disabled title="Loja fechada"')+'>+</button>'+
         '</div>';
     }
   }
@@ -1092,8 +1144,8 @@ footer{
       var inc=e.target.closest('[data-inc]');
       var dec=e.target.closest('[data-dec]');
       var rem=e.target.closest('[data-remove]');
-      if(add){setQty(add.dataset.add,1);return;}
-      if(inc){var id1=inc.dataset.inc;setQty(id1,(cart[id1]||0)+1);return;}
+      if(add){if(!shopIsOpen())return;setQty(add.dataset.add,1);return;}
+      if(inc){if(!shopIsOpen())return;var id1=inc.dataset.inc;setQty(id1,(cart[id1]||0)+1);return;}
       if(dec){var id2=dec.dataset.dec;setQty(id2,(cart[id2]||0)-1);return;}
       if(rem){setQty(rem.dataset.remove,0);return;}
     });
@@ -1102,7 +1154,59 @@ footer{
     document.getElementById('cart-close').addEventListener('click',closeCart);
     document.getElementById('cart-overlay').addEventListener('click',closeCart);
     document.getElementById('cart-checkout').addEventListener('click',checkout);
+
+    document.addEventListener('shopstatuschange',function(){
+      Object.keys(products).forEach(renderCardActions);
+    });
   });
+})();
+</script>
+<script>
+(function(){
+  var OPEN_HOUR=8, CLOSE_HOUR=18;
+  var header=document.getElementById('shopStatus');
+  var mobile=document.getElementById('shopStatusMob');
+  if(!header && !mobile) return;
+
+  function spHour(){
+    var parts=new Intl.DateTimeFormat('pt-BR',{
+      timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',hour12:false
+    }).formatToParts(new Date());
+    var h=0,m=0;
+    parts.forEach(function(p){
+      if(p.type==='hour')h=parseInt(p.value,10);
+      if(p.type==='minute')m=parseInt(p.value,10);
+    });
+    return h+m/60;
+  }
+
+  function update(){
+    var t=spHour();
+    var isOpen=t>=OPEN_HOUR && t<CLOSE_HOUR;
+    var wasOpen=window.SHOP_OPEN;
+    window.SHOP_OPEN=isOpen;
+    var word=isOpen?'Aberto':'Fechado';
+    var detail=isOpen?' · fecha às 18h':' · abre às 08h';
+
+    if(wasOpen!==isOpen){
+      document.dispatchEvent(new CustomEvent('shopstatuschange',{detail:{isOpen:isOpen}}));
+    }
+
+    [header,mobile].forEach(function(el){
+      if(!el)return;
+      el.classList.toggle('is-open',isOpen);
+      el.classList.toggle('is-closed',!isOpen);
+      var txt=el.querySelector('.shop-status-txt');
+      if(txt)txt.textContent=word;
+    });
+    if(header){
+      var full=header.querySelector('.shop-status-txt-full');
+      if(full)full.textContent=detail;
+    }
+  }
+
+  update();
+  setInterval(update,60000);
 })();
 </script>
 </body>
